@@ -11,15 +11,16 @@ from rest_framework.authtoken.models import Token
 from calorie_app.models import FoodItem
 from rest_framework.permissions import DjangoModelPermissions
 from django.contrib.auth.models import User
-from .permissions import IsOwner
+from .permissions import IsOwnerOrAdmin
+from rest_framework import viewsets
 # Create your views here.
 
-class FoodItemView(ListCreateAPIView):
-    permission_classes = [DjangoModelPermissions|IsOwner]
+class FoodItemView(viewsets.ModelViewSet):
+    permission_classes = [IsOwnerOrAdmin]
     serializer_class = FoodItemSerializer
 
     def get_queryset(self):
-        return FoodItem.objects.filter(user=self.request.user)
+        return FoodItem.objects.all()
 
 class UserRegisterView(ListCreateAPIView):
     """

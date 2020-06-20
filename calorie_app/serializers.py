@@ -34,17 +34,10 @@ class FoodItemSerializer(serializers.ModelSerializer):
 
         fooditem = FoodItem.objects.create(**validated_data)        
         return fooditem
-        # food_item = FoodItem.objects.create(**validated_data)
 
 class UserLoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField()
-
-    #Throwing user already exists error when using the class meta
-    # class Meta:
-    #     model = User
-    #     fields = ['username', 'password']
-    #     extra_kwargs = {'password':{'write_only':True,'style':{'input_type':'password'}}}
 
     def validate(self, data):
         username = data.get('username',"")
@@ -82,15 +75,9 @@ class GroupSerializer(serializers.ModelSerializer):
         fields = ('name',)
 
 
-
 class UserRegisterSerializer(serializers.ModelSerializer):
-    # groups = serializers.ChoiceField(choices=group_choices)
     profile = ProfileSerializer()
-    # groups = serializers.SlugRelatedField(queryset=Group.objects.all(), slug_field="name")
-    # max_calories = serializers.IntegerField(write_only=True)
-    # profile = serializers.RelatedField(many=False, read_only=True)
-    # profile = serializers.ReadOnlyField(source='user.profile')
-    
+  
     class Meta:
         model = User
         fields = ['username', 'password', 'profile', 'groups']
@@ -109,17 +96,10 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         
     def create(self, validated_data):
         profile_data, password, groups = validated_data.pop('profile'), validated_data.pop('password'), validated_data.pop('groups')
-        # group = Group.objects.get(name=group_name)
         user = User.objects.create(**validated_data)
         user.set_password(password)
         for group in groups:
             user.groups.add(group)
         UserProfile.objects.create(user=user, max_calories=profile_data['max_calories'])
         user.save()
-        print(user.username, user.profile)
-        # user.groups, user.max_calories = group_name, profile_max_calories
         return user
-
-
-
-
