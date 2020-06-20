@@ -10,10 +10,11 @@ from django.db.models import Sum
 group_choices = ['Normal_User', 'User_Manager', 'Administrator']
 
 class FoodItemSerializer(serializers.ModelSerializer):
+    user = serializers.ReadOnlyField(source='user.username')
     class Meta:
         model = FoodItem
-        fields = '__all__'
         read_only_fields = ['user', 'timestamp', 'calories_exceeded']
+        exclude = ['id',]
         ordering = ['-timestamp']
 
     def validate_num_of_calories(self, value):
@@ -23,7 +24,7 @@ class FoodItemSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data['user'] = self.context['request'].user
-        max_calories = validated_data['user'].userprofile.max_calories
+        max_calories = validated_data['user'].profile.max_calories
         calories_consumed_today = FoodItem.objects.filter(
             user=validated_data['user'], 
             timestamp__gte=datetime.now().replace(hour=0, minute=0, second=0)
