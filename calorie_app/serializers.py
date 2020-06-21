@@ -7,7 +7,6 @@ from calorie_app.models import UserProfile, FoodItem
 from datetime import datetime
 from django.db.models import Sum
 
-group_choices = ['Normal_User', 'User_Manager', 'Administrator']
 
 class FoodItemSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
@@ -35,6 +34,7 @@ class FoodItemSerializer(serializers.ModelSerializer):
         fooditem = FoodItem.objects.create(**validated_data)        
         return fooditem
 
+
 class UserLoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField()
@@ -58,6 +58,7 @@ class UserLoginSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
+    user = serializers.ReadOnlyField(source='user.username')
     class Meta:
         model = UserProfile
         fields = ['user', 'max_calories']
@@ -69,31 +70,15 @@ class ProfileSerializer(serializers.ModelSerializer):
         return value        
 
 
-class GroupSerializer(serializers.ModelSerializer):    
-    class Meta:
-        model = Group
-        fields = ('name',)
-
-
 class UserRegisterSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer()
-  
+    groups = serializers.SlugRelatedField(many=True,required=False, queryset=Group.objects.all(),slug_field='name')
+
     class Meta:
         model = User
         fields = ['username', 'password', 'profile', 'groups']
         extra_kwargs = {'password':{'write_only':True,'style':{'input_type':'password'}}}
 
-
-    # def valiadate_max_calories(self, value):
-    #     if value < 1:
-    #         raise ValidationError({"max_calories":"Please enter a calorie value more than 1."}, code=404)
-    #     return value    
-
-    # def validate_groups(self, value):
-    #     if len(value) > 1:
-    #         raise ValidationError({"groups":"You can select only one group"})
-    #     return value
-        
     def create(self, validated_data):
         profile_data, password, groups = validated_data.pop('profile'), validated_data.pop('password'), validated_data.pop('groups')
         user = User.objects.create(**validated_data)
