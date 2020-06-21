@@ -7,20 +7,10 @@ from calorie_app.serializers import (
 from rest_framework import generics, viewsets, views
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
-from calorie_app.models import FoodItem
+from calorie_app.models import FoodItem, FoodFilter
 from django.contrib.auth.models import User
 from .permissions import IsOwnerOrAdmin, IsUserManagerOrAdmin
 from django_filters import rest_framework as filters
-
-
-class FoodFilter(filters.FilterSet):
-    class Meta:
-        model = FoodItem
-        fields = {
-            'num_of_calories':['lt','gt','exact','lte','gte'],
-            'food_item':['exact',],
-            'timestamp':['lt','gt','exact','lte','gte'],
-        }
 
 
 class FoodItemView(viewsets.ModelViewSet):

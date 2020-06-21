@@ -1,8 +1,7 @@
 from rest_framework import serializers
-from django.contrib.auth import get_user_model
+from django.contrib.auth import authenticate, get_user_model
 from rest_framework.validators import ValidationError
 from django.contrib.auth.models import Group, User
-from django.contrib.auth import authenticate
 from calorie_app.models import UserProfile, FoodItem
 from datetime import datetime
 from django.db.models import Sum
@@ -16,13 +15,6 @@ class FoodItemSerializer(serializers.ModelSerializer):
         exclude = ['id',]
         ordering = ['-timestamp']
 
-    # def validate(self, data):
-    #     print(self.)
-    #     if value.strip() =='':
-    #         pass
-    #     if value < 1:
-    #         raise ValidationError({"num_of_calories":"Please enter a calorie value more than 1."}, code=404)
-    #     return value
     def validate(self, data):
         food_item = data['food_item']
         num_of_calories = data['num_of_calories']
