@@ -9,7 +9,7 @@ class FoodItem(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True)
     food_item = models.CharField(max_length=200, null=False, blank=False)
-    num_of_calories = models.IntegerField(null=False, validators=(MinValueValidator(1, message="Minimum calories for a day should be 1."),))
+    num_of_calories = models.IntegerField(null=True, blank=True)
     calories_exceeded = models.BooleanField(default=False)
 
 

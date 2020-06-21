@@ -6,7 +6,7 @@ from django.contrib.auth import authenticate
 from calorie_app.models import UserProfile, FoodItem
 from datetime import datetime
 from django.db.models import Sum
-
+import requests, json, pprint
 
 class FoodItemSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
@@ -16,10 +16,35 @@ class FoodItemSerializer(serializers.ModelSerializer):
         exclude = ['id',]
         ordering = ['-timestamp']
 
-    def validate_num_of_calories(self, value):
-        if value < 1:
-            raise ValidationError({"num_of_calories":"Please enter a calorie value more than 1."}, code=404)
-        return value
+    # def validate(self, data):
+    #     print(self.)
+    #     if value.strip() =='':
+    #         pass
+    #     if value < 1:
+    #         raise ValidationError({"num_of_calories":"Please enter a calorie value more than 1."}, code=404)
+    #     return value
+    def validate(self, data):
+        food_item = data['food_item']
+        num_of_calories = data['num_of_calories']
+
+        if num_of_calories == 0 or num_of_calories is None  or num_of_calories.strip() == '':       
+            HEADERS = {
+                "x-app-id":"f26e0228",
+                "x-app-key":"130a3ebf8a86195fe3f8632d6b346c1b",
+                "Content-Type": "application/json"
+            }
+
+            url = f"https://trackapi.nutritionix.com/v2/search/instant?query={food_item}"
+            response = requests.get(url, headers=HEADERS)
+            json_output = json.loads(response.content.decode('utf-8'))
+            # pprint.pprint(data['branded'][0])
+            if len(json_output['branded'])>0:
+                pprint.pprint(json_output['branded'][0]['nf_calories'])
+                data["num_of_calories"] = json_output['branded'][0]['nf_calories']
+            else:
+                raise ValidationError({"food_item":"Please check the item and try again!"},404)
+        return data
+
 
     def create(self, validated_data):
         validated_data['user'] = self.context['request'].user
