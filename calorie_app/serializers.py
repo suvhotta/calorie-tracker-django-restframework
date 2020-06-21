@@ -5,7 +5,7 @@ from django.contrib.auth.models import Group, User
 from calorie_app.models import UserProfile, FoodItem
 from datetime import datetime
 from django.db.models import Sum
-import requests, json, pprint
+import requests, json
 
 class FoodItemSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
@@ -18,7 +18,6 @@ class FoodItemSerializer(serializers.ModelSerializer):
     def validate(self, data):
         food_item = data['food_item']
         num_of_calories = data['num_of_calories']
-
         if num_of_calories == 0 or num_of_calories is None  or num_of_calories.strip() == '':       
             HEADERS = {
                 "x-app-id":"f26e0228",
@@ -29,14 +28,12 @@ class FoodItemSerializer(serializers.ModelSerializer):
             url = f"https://trackapi.nutritionix.com/v2/search/instant?query={food_item}"
             response = requests.get(url, headers=HEADERS)
             json_output = json.loads(response.content.decode('utf-8'))
-            # pprint.pprint(data['branded'][0])
             if len(json_output['branded'])>0:
                 pprint.pprint(json_output['branded'][0]['nf_calories'])
                 data["num_of_calories"] = json_output['branded'][0]['nf_calories']
             else:
                 raise ValidationError({"food_item":"Please check the item and try again!"},404)
         return data
-
 
     def create(self, validated_data):
         validated_data['user'] = self.context['request'].user
@@ -47,7 +44,6 @@ class FoodItemSerializer(serializers.ModelSerializer):
             ).aggregate(Sum('num_of_calories'))['num_of_calories__sum']
         if calories_consumed_today is not None:
             validated_data['calories_exceeded'] = calories_consumed_today > max_calories
-
         fooditem = FoodItem.objects.create(**validated_data)        
         return fooditem
 
@@ -59,7 +55,6 @@ class UserLoginSerializer(serializers.Serializer):
     def validate(self, data):
         username = data.get('username',"")
         password = data.get('password',"")
-
         if username and password:
             user = authenticate(**data)
             if user:
@@ -90,7 +85,6 @@ class ProfileSerializer(serializers.ModelSerializer):
 class UserRegisterSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer()
     groups = serializers.SlugRelatedField(many=True,required=False, queryset=Group.objects.all(),slug_field='name')
-
     class Meta:
         model = User
         fields = ['username', 'password', 'profile', 'groups']
