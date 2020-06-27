@@ -1,11 +1,15 @@
-from rest_framework import serializers
-from django.contrib.auth import authenticate, get_user_model
-from rest_framework.validators import ValidationError
-from django.contrib.auth.models import Group, User
-from calorie_app.models import UserProfile, FoodItem
+import json
 from datetime import datetime
+
+import requests
+from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.models import Group, User
 from django.db.models import Sum
-import requests, json
+from rest_framework import serializers
+from rest_framework.validators import ValidationError
+
+from calorie_app.models import FoodItem, UserProfile
+
 
 class FoodItemSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
@@ -18,7 +22,7 @@ class FoodItemSerializer(serializers.ModelSerializer):
     def validate(self, data):
         food_item = data['food_item']
         num_of_calories = data['num_of_calories']
-        if num_of_calories == 0 or num_of_calories is None  or num_of_calories.strip() == '':       
+        if num_of_calories == 0 or num_of_calories is None :       
             HEADERS = {
                 "x-app-id":"f26e0228",
                 "x-app-key":"130a3ebf8a86195fe3f8632d6b346c1b",
@@ -29,7 +33,6 @@ class FoodItemSerializer(serializers.ModelSerializer):
             response = requests.get(url, headers=HEADERS)
             json_output = json.loads(response.content.decode('utf-8'))
             if len(json_output['branded'])>0:
-                pprint.pprint(json_output['branded'][0]['nf_calories'])
                 data["num_of_calories"] = json_output['branded'][0]['nf_calories']
             else:
                 raise ValidationError({"food_item":"Please check the item and try again!"},404)
@@ -91,6 +94,9 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password':{'write_only':True,'style':{'input_type':'password'}}}
 
     def create(self, validated_data):
+        """
+        Creates a new user.
+        """
         profile_data, password, groups = validated_data.pop('profile'), validated_data.pop('password'), validated_data.pop('groups')
         user = User.objects.create(**validated_data)
         user.set_password(password)
@@ -99,3 +105,29 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         UserProfile.objects.create(user=user, max_calories=profile_data['max_calories'])
         user.save()
         return user
+
+    def update(self, instance, validated_data):
+        """
+        Updates an existing user instance.
+        """
+        instance.username = validated_data.get('username', instance.username)
+        
+        print(instance.pk)
+        # groups = validated_data.pop('groups')
+
+        if validated_data.get('password', None):
+                instance.set_password(validated_data['password'])
+
+        try:
+            if validated_data.get('profile', None):
+                profile_data = validated_data.pop('profile')
+                profile = instance.profile
+                profile.max_calories = profile_data.get('max_calories', profile.max_calories)
+                profile.save()
+        except UserProfile.DoesNotExist:
+            instance.profile = UserProfile.objects.create(user=instance, **profile_data)
+        instance.save()
+        # groups = instance.groups
+
+        return instance 
+

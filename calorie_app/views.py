@@ -1,16 +1,15 @@
-from django.shortcuts import render
-from calorie_app.serializers import (
-    UserRegisterSerializer,
-    UserLoginSerializer,
-    FoodItemSerializer
-)
-from rest_framework import generics, viewsets, views
-from rest_framework.response import Response
-from rest_framework.authtoken.models import Token
-from calorie_app.models import FoodItem, FoodFilter
 from django.contrib.auth.models import User
-from .permissions import IsOwnerOrAdmin, IsUserManagerOrAdmin
+from django.shortcuts import render
 from django_filters import rest_framework as filters
+from rest_framework import generics, views, viewsets
+from rest_framework.authtoken.models import Token
+from rest_framework.response import Response
+
+from calorie_app.models import FoodFilter, FoodItem
+from calorie_app.serializers import (FoodItemSerializer, UserLoginSerializer,
+                                     UserRegisterSerializer)
+
+from .permissions import IsOwnerOrAdmin, IsUserManagerOrAdmin
 
 
 class FoodItemView(viewsets.ModelViewSet):
@@ -23,7 +22,8 @@ class FoodItemView(viewsets.ModelViewSet):
             return FoodItem.objects.filter(user=self.request.user)
         return FoodItem.objects.all()
 
-class UserRegisterView(generics.ListCreateAPIView):
+
+class UserRegisterView(viewsets.ModelViewSet):
     """
     View to create User
     """
@@ -40,6 +40,7 @@ class UserRegisterView(generics.ListCreateAPIView):
             print("User isn't authorized here.")
             raise PermissionError("User isn't authorized here.")
 
+    
 
 class UserLoginView(views.APIView):
     def post(self, request):

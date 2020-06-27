@@ -26,7 +26,7 @@ class IsOwnerOrAdmin(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         has_group_permission = _has_group_permission(request.user, self.required_groups)
-        return obj.user == request.user or has_group_permission
+        return obj == request.user or has_group_permission
 
 
 class IsUserManagerOrAdmin(permissions.BasePermission):
@@ -35,5 +35,5 @@ class IsUserManagerOrAdmin(permissions.BasePermission):
     """
     required_groups = ['Administrator', 'User_Manager']
     def has_object_permission(self, request, view, obj):
-        return _has_group_permission(request.user, self.required_groups)
-        # return obj.user == request.user or has_group_permission
+        has_group_permission = _has_group_permission(request.user, self.required_groups)
+        return obj == request.user or has_group_permission
