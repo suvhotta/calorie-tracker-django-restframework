@@ -112,11 +112,21 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         """
         instance.username = validated_data.get('username', instance.username)
         
-        print(instance.pk)
+        # print(instance.pk)
+        # groups = Group.objects.all()
+        # print(groups)
         # groups = validated_data.pop('groups')
+        # for group in groups:
+        #     instance.groups.remove(group)
 
         if validated_data.get('password', None):
                 instance.set_password(validated_data['password'])
+        
+        if validated_data.get('groups', None):
+            instance.groups.clear()
+            groups = validated_data.pop('groups')
+            for group in groups:
+                instance.groups.add(group)
 
         try:
             if validated_data.get('profile', None):
