@@ -88,6 +88,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 class UserRegisterSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer()
     groups = serializers.SlugRelatedField(many=True,required=False, queryset=Group.objects.all(),slug_field='name')
+    
     class Meta:
         model = User
         fields = ['username', 'password', 'profile', 'groups']
@@ -112,13 +113,6 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         """
         instance.username = validated_data.get('username', instance.username)
         
-        # print(instance.pk)
-        # groups = Group.objects.all()
-        # print(groups)
-        # groups = validated_data.pop('groups')
-        # for group in groups:
-        #     instance.groups.remove(group)
-
         if validated_data.get('password', None):
                 instance.set_password(validated_data['password'])
         
@@ -137,7 +131,4 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         except UserProfile.DoesNotExist:
             instance.profile = UserProfile.objects.create(user=instance, **profile_data)
         instance.save()
-        # groups = instance.groups
-
         return instance 
-

@@ -23,7 +23,6 @@ class UserProfile(models.Model):
 
 
 class FoodFilter(filters.FilterSet):
-
     class Meta:
         model = FoodItem
         fields = {

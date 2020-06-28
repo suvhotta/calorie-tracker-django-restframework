@@ -6,8 +6,9 @@ from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 
 from calorie_app.models import FoodFilter, FoodItem
-from calorie_app.serializers import (FoodItemSerializer, UserLoginSerializer,
-                                     UserRegisterSerializer)
+from calorie_app.serializers import (FoodItemSerializer, 
+                                    UserLoginSerializer,
+                                    UserRegisterSerializer)
 
 from .permissions import IsOwnerOrAdmin, IsUserManagerOrAdmin
 
