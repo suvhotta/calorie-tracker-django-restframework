@@ -19,7 +19,6 @@ class FoodItemView(viewsets.ModelViewSet):
     filter_backends = (filters.DjangoFilterBackend,)
     filterset_class = FoodFilter
     def get_queryset(self):
-        # return FoodItem.objects.all()
         if self.request.user.groups.first().name != "Administrator":
             return FoodItem.objects.filter(user=self.request.user)
         return FoodItem.objects.all()
@@ -34,7 +33,6 @@ class UserRegisterView(viewsets.ModelViewSet):
     serializer_class = UserRegisterSerializer
 
     def get_queryset(self):
-        # return User.objects.all()
         try:
             if self.request.user.groups.first().name not in ("Administrator", "User_Manager"):
                 return User.objects.filter(username=self.request.user.username)
@@ -42,7 +40,6 @@ class UserRegisterView(viewsets.ModelViewSet):
             return User.objects.all()
         except (AttributeError, TypeError):
             raise PermissionError("User isn't authorized here.")
-
     
 
 class UserLoginView(views.APIView):

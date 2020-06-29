@@ -87,12 +87,17 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer()
-    groups = serializers.SlugRelatedField(many=True,required=False, queryset=Group.objects.all(),slug_field='name')
+    groups = serializers.SlugRelatedField(many=True,required=True, queryset=Group.objects.all(),slug_field='name')
     
     class Meta:
         model = User
         fields = ['username', 'password', 'profile', 'groups']
         extra_kwargs = {'password':{'write_only':True,'style':{'input_type':'password'}}}
+
+    def validate_groups(self, value):
+        if len(value)>1:
+            raise ValidationError("Please enter a single group.", code=404)
+        return value
 
     def create(self, validated_data):
         """

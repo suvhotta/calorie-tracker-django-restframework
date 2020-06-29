@@ -1,7 +1,7 @@
-from django.db import models
-from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
+from django.db import models
 from django_filters import rest_framework as filters
 
 User = get_user_model()
@@ -30,4 +30,3 @@ class FoodFilter(filters.FilterSet):
             'food_item':['exact', 'icontains'],
             'timestamp':['lt', 'gt', 'exact', 'lte', 'gte'],
         }
-

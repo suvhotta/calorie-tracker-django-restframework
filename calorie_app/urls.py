@@ -1,4 +1,5 @@
 from django.urls import path
+
 from calorie_app import views as app_views
 
 fooditem_list = app_views.FoodItemView.as_view({
@@ -28,9 +29,9 @@ users = app_views.UserRegisterView.as_view({
 })
 
 urlpatterns = [
-    path('register/', register),
-    path('users/<int:pk>', users),
-    path('login/', app_views.UserLoginView.as_view()),
+    path('register/', register, name='register'),
+    path('users/<int:pk>/', users,name='user-details'),
+    path('login/', app_views.UserLoginView.as_view(),name='login'),
     path('fooditem/', fooditem_list),
     path('fooditem/<int:pk>/', fooditem_detail),
 ]
