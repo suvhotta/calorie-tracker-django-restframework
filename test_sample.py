@@ -17,10 +17,24 @@ class TestUserList(APITestCase):
         self.factory = APIRequestFactory()
         self.view = apiviews.UserRegisterView.as_view({'get':'list'})
         self.url = '/register/'
+
+        #creating different permission-groups
+        group_list = ["Administrator", "User_Manager", "Normal_User"]
+        for group in group_list:
+            TestUserList.create_group(group)
+
+        #creating an Admin account
         self.user1 = self.setup_user('user1','user1',"Administrator",2050)
-        print(self.user1.pk)
         self.token = TestUserList.token_creation(self.user1)
+
+        #Creating a User_Manager account
+        self.user2 = self.setup_user('user2', 'user2', "User_Manager", 1990)
+        self.token = TestUserList.token_creation(self.user2)
         
+        #Creating a Normal_User account
+        self.user3 = self.setup_user('user3', 'user3', 'Normal_User', 2100)
+
+
     @staticmethod
     def token_creation(user):
         token = Token.objects.create(user=user)
@@ -28,23 +42,42 @@ class TestUserList(APITestCase):
         return token
 
     @staticmethod
-    def create_permissions(group, model_name, content_type):
-        add_permission = models.Permission.objects.create(
+    def create_group(group_name):
+        model_names = ['fooditem', 'userprofile', 'user']
+        new_group, _ = models.Group.objects.get_or_create(name=group_name)
+        if group_name == "Administrator":
+            for _ in range(len(model_names)):
+                new_group = TestUserList.create_permissions(new_group, model_names[_])
+        elif group_name == "User_Manager":
+            for _ in range(1, len(model_names)):
+                new_group = TestUserList.create_permissions(new_group, model_names[_])
+        elif group_name == "Normal_User":
+            new_group = TestUserList.create_permissions(new_group, model_names[0])
+
+    @staticmethod
+    def create_permissions(group, model_name):
+        model_names = {
+            "fooditem":FoodItem,
+            "user":models.User,
+            "userprofile":UserProfile
+        }
+        content_type = ContentType.objects.get_for_model(model_names[model_name])
+        add_permission, _ = models.Permission.objects.get_or_create(
             codename=f'can_add_{model_name}',
             name=f'can add {model_name}',
             content_type=content_type
         )
-        change_permission = models.Permission.objects.create(
+        change_permission, _ = models.Permission.objects.get_or_create(
             codename=f'can_change_{model_name}',
             name=f'can change {model_name}',
             content_type=content_type
         )
-        view_permission = models.Permission.objects.create(
+        view_permission, _ = models.Permission.objects.get_or_create(
             codename=f'can_view_{model_name}',
             name=f'can view {model_name}',
             content_type=content_type
         )
-        delete_permission = models.Permission.objects.create(
+        delete_permission, _ = models.Permission.objects.get_or_create(
             codename=f'can_delete_{model_name}',
             name=f'can delete {model_name}',
             content_type=content_type
@@ -59,21 +92,14 @@ class TestUserList(APITestCase):
             username=username,
         )
         user.set_password(password)
-    
-        new_group, _ = models.Group.objects.get_or_create(name=group_name)
-        content_type = ContentType.objects.get_for_model(FoodItem)
-        new_group = TestUserList.create_permissions(new_group, "fooditem", content_type)
-        content_type = ContentType.objects.get_for_model(UserProfile)
-        new_group = TestUserList.create_permissions(new_group, "userprofile", content_type)
-        content_type = ContentType.objects.get_for_model(models.User)
-        new_group = TestUserList.create_permissions(new_group, "user", content_type)
-        
-        user.groups.add(new_group)
+        group,_ = models.Group.objects.get_or_create(name=group_name)    
+      
+        user.groups.add(group)
         user.save()
         UserProfile.objects.create(user=user, max_calories=max_calories)
         return user
 
-    def test_get_all_users_list(self):
+    def test_get_all_users_list(self):      
         request = self.factory.get(self.url,
             HTTP_AUTHORIZATION=f'Token {self.token.key}')
         response = self.view(request)
@@ -93,7 +119,7 @@ class TestUserList(APITestCase):
                          'Expected Response Code 201, received {0} instead.'
                          .format(response.status_code))
 
-    def test_get_user_details(self):
+    def test_admin_get_user_details(self):
         self.view = apiviews.UserRegisterView.as_view({'get':'retrieve'})
         
         self.user = get_user_model().objects.filter(username='user1').first()
@@ -107,15 +133,15 @@ class TestUserList(APITestCase):
         self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
         self.assertEqual(response.data, {'username':'user1', 'profile':{'user':'user1','max_calories':2050}, 'groups':['Administrator']})
 
-    def test_add_new_user(self):
+    def test_admin_add_new_user(self):
         self.view = apiviews.UserRegisterView.as_view({'post':'create'})
-        
         self.user = get_user_model().objects.filter(username='user1').first()
         self.token,_ = Token.objects.get_or_create(user=self.user)
+
         self.valid_payload = {
-            "username":"user2",
-            "password":"user2",
-            "groups":['Administrator'],
+            "username":"user4",
+            "password":"user4",
+            "groups":['Normal_User'],
             "profile":{
                 "max_calories":1920
             }
@@ -126,5 +152,3 @@ class TestUserList(APITestCase):
         response = self.view(request)
         print(response.data)
         self.assertEqual(response.status_code, 201, f'Expected Response Code 201, received {response.status_code} instead.')
-        # self.assertEqual(response.data, {'username':'user1', 'profile':{'user':'user1','max_calories':2050}, 'groups':['Administrator']})
-        

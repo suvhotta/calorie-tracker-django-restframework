@@ -1,16 +1,6 @@
 from django.contrib.auth.models import Group
 from rest_framework import permissions
 
-# def _is_in_group(user, group_name):
-#     """
-#     Checks if user is in a certain group or not.
-#     """
-#     try:
-#         return user.groups.filter(name=group_name).exists()
-#     except Group.DoesNotExist:
-#         return None
-
-
 def _has_group_permission(user, required_groups):
     try:
         return any([user.groups.filter(name=group_name).exists() for group_name in required_groups])
