@@ -411,3 +411,81 @@ class TestingAPI(APITestCase):
             self.valid_payload, format="json",
             HTTP_AUTHORIZATION=f'Token {self.token2.key}')
         self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
+
+    def test_add_fooditem(self):
+        #adding food-item with calories
+        self.payload = {
+            "food_item":"Friedrice",
+            "num_of_calories":450
+        }
+        response = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token3.key}'
+        )
+        self.assertEqual(response.status_code, 201, f'Expected Response Code 200, received {response.status_code} instead.')
+
+        #adding fooditem without calories field:
+        self.payload = {
+            "food_item":"chicken burger"
+        }
+        response = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token3.key}'
+        )
+        self.assertEqual(response.status_code, 201, f'Expected Response Code 200, received {response.status_code} instead.')
+
+        #adding fooditem with gibberish and checking api response
+        self.payload = {
+            "food_item":"Gibberish"
+        }
+        response = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token3.key}'
+        )
+        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
+
+    def test_view_fooditem(self):
+        self.payload = {
+            "food_item":"Friedrice",
+            "num_of_calories":450
+        }
+        response = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token3.key}'
+        )
+        
+        #checking self added food items
+        response = self.client.get(
+            reverse('food-details', kwargs={'pk':FoodItem.objects.filter(user=self.user3).first().pk}),
+            HTTP_AUTHORIZATION = f'token {self.token3.key}'
+        )
+        print(response.data)
+        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
+
+    def test_edit_self_added_fooditems(self):
+        #checking patch method for food items
+        self.payload = {
+            "food_item":"Friedrice",
+            "num_of_calories":450
+        }
+        _ = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token3.key}'
+        )
+        
+        self.payload = {
+            "num_of_calories":520
+        }
+        response = self.client.patch(
+            reverse('food-details', kwargs={'pk':1}),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token3.key}'
+        )
+        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
+        
+        
