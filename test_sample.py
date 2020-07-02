@@ -110,6 +110,7 @@ class TestingAPI(APITestCase):
         self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
 
     def test_login_user(self):
+        #login with correct credentials
         self.valid_payload = {
             "username":"user1",
             "password":"user1"
@@ -122,6 +123,32 @@ class TestingAPI(APITestCase):
                          'Expected Response Code 201, received {0} instead.'
                          .format(response.status_code))
         self.assertTrue("token" in json.loads(response.content))
+
+        #logging in with without password
+        self.valid_payload = {
+            "username":"user1",
+            "password":""
+        }
+        response = self.client.post(
+            reverse('login'),
+            self.valid_payload
+        )
+        self.assertEqual(response.status_code, 400,
+                         'Expected Response Code 400, received {0} instead.'
+                         .format(response.status_code))
+
+        #logging with wrong credentials
+        self.valid_payload = {
+            "username":"user1",
+            "password":"users"
+        }
+        response = self.client.post(
+            reverse('login'),
+            self.valid_payload
+        )
+        self.assertEqual(response.status_code, 400,
+                         'Expected Response Code 400, received {0} instead.'
+                         .format(response.status_code))
 
     def test_authentication_without_username(self):
         response = self.client.post(reverse('register'), {"password": "user1"})
@@ -159,6 +186,22 @@ class TestingAPI(APITestCase):
         )
         self.assertEqual(response.status_code, 201, f'Expected Response Code 201, received {response.status_code} instead.')
     
+    def test_add_user_nonexisting_group(self):
+        self.valid_payload = {
+            "username":"user4",
+            "password":"user4",
+            "groups":['gibberish'],
+            "profile":{
+                "max_calories":1920
+            }
+        }
+        response = self.client.post(
+            reverse('register'),
+            self.valid_payload, format="json",
+            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
+        )
+        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
+        
     def test_add_user_missing_values(self):
         #blank username
         self.valid_payload = {
@@ -176,6 +219,7 @@ class TestingAPI(APITestCase):
         )
         self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
         
+        #no password
         self.valid_payload = {
             "username":"user4",
             "groups":['Normal_User'],
@@ -190,6 +234,7 @@ class TestingAPI(APITestCase):
         )
         self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
         
+        #blank group
         self.valid_payload = {
             "username":"user4",
             "password":"user4",
@@ -205,10 +250,43 @@ class TestingAPI(APITestCase):
         )
         self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
         
+        #no max_calories field
         self.valid_payload = {
             "username":"user4",
             "password":"user4",
             "groups":['Normal_User']
+        }
+        response = self.client.post(
+            reverse('register'),
+            self.valid_payload, format="json",
+            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
+        )
+        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
+
+        #setting max_calories_field to 0
+        self.valid_payload = {
+            "username":"user4",
+            "password":"user4",
+            "groups":['Normal_User'],
+            "profile":{
+                "max_calories":0
+            }
+        }
+        response = self.client.post(
+            reverse('register'),
+            self.valid_payload, format="json",
+            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
+        )
+        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
+        
+        #setting max_calories as decimal
+        self.valid_payload = {
+            "username":"user4",
+            "password":"user4",
+            "groups":['Normal_User'],
+            "profile":{
+                "max_calories":1020.5
+            }
         }
         response = self.client.post(
             reverse('register'),

@@ -77,12 +77,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ['user', 'max_calories']
-        extra_kwargs = {'user':{'read_only':True}}
-
-    def valiadate_max_calories(self, value):
-        if value < 1:
-            raise ValidationError({"max_calories":"Please enter a calorie value more than 1."}, code=404)
-        return value        
+        extra_kwargs = {'user':{'read_only':True}}  
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
