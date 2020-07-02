@@ -1,12 +1,16 @@
+import json
+
 from django.contrib.auth import get_user_model, models
 from django.contrib.contenttypes.models import ContentType
+from django.test import Client, TestCase
+from django.urls import include, path, reverse
+from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient, APIRequestFactory, APITestCase
-from rest_framework import status
+
 import calorie_app.views as apiviews
 from calorie_app.models import FoodItem, UserProfile
-from django.test import TestCase, Client
-from django.urls import include, path, reverse
+
 
 class TestingAPI(APITestCase):
     urlpatterns = [
@@ -110,30 +114,32 @@ class TestingAPI(APITestCase):
             "username":"user1",
             "password":"user1"
         }
-        
-        self.url = reverse('login')
-
-        response = self.client.post(self.url, self.valid_payload)
-        print(response.content)
+        response = self.client.post(
+            reverse('login'),
+            self.valid_payload
+        )
         self.assertEqual(response.status_code, 201,
                          'Expected Response Code 201, received {0} instead.'
                          .format(response.status_code))
+        self.assertTrue("token" in json.loads(response.content))
+
+    def test_authentication_without_password(self):
+        response = self.client.post(self.url, {"username": "snowman"})
+        self.assertEqual(400, response.status_code)
+
+    def test_authentication_with_wrong_password(self):
+        response = self.client.post(self.url, {"username": self.user1.username, "password": "I_know"})
+        self.assertEqual(400, response.status_code)
 
     def test_admin_get_user_details(self):
-        self.view = apiviews.UserRegisterView.as_view({'get':'retrieve'})
-        self.url = reverse('user-details',kwargs={'pk':self.user2.pk})
-        request = self.factory.get(self.url,
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}')
-        response = self.view(request,pk=self.user2.pk)
-        print(response.data)
+        response = self.client.get(
+            reverse('user-details', kwargs={'pk':self.user2.pk}),
+            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
+        )
         self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
-        # self.assertEqual(response.data, {'username':'user1', 'profile':{'user':'user1','max_calories':2050}, 'groups':['Administrator']})
+        self.assertEqual(response.data, {'username':'user2', 'profile':{'user':'user2','max_calories':1990}, 'groups':['User_Manager']})
 
     def test_admin_add_new_user(self):
-        self.view = apiviews.UserRegisterView.as_view({'post':'create'})
-        self.user = get_user_model().objects.filter(username='user1').first()
-        self.token,_ = Token.objects.get_or_create(user=self.user)
-
         self.valid_payload = {
             "username":"user4",
             "password":"user4",
@@ -142,11 +148,45 @@ class TestingAPI(APITestCase):
                 "max_calories":1920
             }
         }
-        self.url = reverse('register')
-        request = self.factory.post(self.url, self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token.key}')
-        response = self.view(request)
+        response = self.client.post(
+            reverse('register'),
+            self.valid_payload, format="json",
+            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
+        )
         self.assertEqual(response.status_code, 201, f'Expected Response Code 201, received {response.status_code} instead.')
+
+    def test_unique_username_validation(self):
+        """
+        Test to verify that a post call with already exists username
+        """
+        user_data_1 = {
+            "username":"user4",
+            "password":"user4",
+            "groups":['Normal_User'],
+            "profile":{
+                "max_calories":1920
+            }
+        }
+        response = self.client.post(
+            reverse('register'),
+            user_data_1, format="json",
+            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
+        )
+        self.assertEqual(201, response.status_code)
+
+        user_data_2 = {
+            "username":"user4",
+            "password":"user4",
+            "groups":['Normal_User'],
+            "profile":{
+                "max_calories":1920
+            }
+        }
+        response = self.client.post(
+            reverse('register'),
+            user_data_2, format="json",
+            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
+        )
 
     def test_admin_remove_user(self): 
         response = self.client.delete(
@@ -180,4 +220,54 @@ class TestingAPI(APITestCase):
             reverse('user-details', kwargs={'pk': self.user2.pk}),
             self.valid_payload, format="json",
             HTTP_AUTHORIZATION=f'Token {self.token1.key}')
+        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
+
+    def test_user_manager_add_new_user(self):
+        self.valid_payload = {
+            "username":"user4",
+            "password":"user4",
+            "groups":['Normal_User'],
+            "profile":{
+                "max_calories":1920
+            }
+        }
+        response = self.client.post(
+            reverse('register'),
+            self.valid_payload, format="json",
+            HTTP_AUTHORIZATION=f'Token {self.token2.key}'
+        )
+        self.assertEqual(response.status_code, 201, f'Expected Response Code 201, received {response.status_code} instead.')
+
+    def test_user_manager_remove_user(self): 
+        response = self.client.delete(
+            reverse('user-details', kwargs={'pk': self.user3.pk}),
+            HTTP_AUTHORIZATION=f'Token {self.token2.key}')
+        self.assertEqual(response.status_code, 204, f'Expected Response Code 204, received {response.status_code} instead.')
+
+    def test_user_manager_patch_user(self):
+        self.valid_payload={
+            "profile":{
+                "max_calories":2120
+            }
+        }
+        response = self.client.patch(
+            reverse('user-details', kwargs={'pk': self.user3.pk}),
+            self.valid_payload, format="json",
+            HTTP_AUTHORIZATION=f'Token {self.token2.key}')
+        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
+
+    def test_user_manager_put_user(self):
+        self.valid_payload={
+            "username":self.user3.username,
+            "password":self.user3.password,
+            "profile":{
+                "user":"user3",
+                "max_calories":2120
+            },
+            "groups":['User_Manager']
+        }
+        response = self.client.put(
+            reverse('user-details', kwargs={'pk': self.user3.pk}),
+            self.valid_payload, format="json",
+            HTTP_AUTHORIZATION=f'Token {self.token2.key}')
         self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')

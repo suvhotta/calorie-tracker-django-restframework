@@ -31,7 +31,7 @@ users = app_views.UserRegisterView.as_view({
 urlpatterns = [
     path('register/', register, name='register'),
     path('users/<int:pk>/', users, name='user-details'),
-    path('login/', app_views.UserLoginView.as_view(),name='login'),
+    path('login/', app_views.UserLoginView.as_view(), name='login'),
     path('fooditem/', fooditem_list),
     path('fooditem/<int:pk>/', fooditem_detail),
 ]
