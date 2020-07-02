@@ -20,9 +20,9 @@ class FoodItemSerializer(serializers.ModelSerializer):
         ordering = ['-timestamp']
 
     def validate(self, data):
-        food_item = data['food_item']
-        num_of_calories = data['num_of_calories']
-        if num_of_calories == 0 or num_of_calories is None :       
+        food_item = data.get('food_item', "")
+        num_of_calories = data.get('num_of_calories', "")
+        if num_of_calories == 0 or num_of_calories is None or num_of_calories =="" :       
             HEADERS = {
                 "x-app-id":"f26e0228",
                 "x-app-key":"130a3ebf8a86195fe3f8632d6b346c1b",

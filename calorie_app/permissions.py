@@ -1,5 +1,6 @@
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, User
 from rest_framework import permissions
+from calorie_app.models import FoodItem
 
 def _has_group_permission(user, required_groups):
     try:
@@ -15,8 +16,9 @@ class IsOwnerOrAdmin(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         has_group_permission = _has_group_permission(request.user, self.required_groups)
+        if isinstance(obj, FoodItem):
+            return obj.user == request.user or has_group_permission    
         return obj == request.user or has_group_permission
-
 
 class IsUserManagerOrAdmin(permissions.BasePermission):
     """
@@ -25,4 +27,6 @@ class IsUserManagerOrAdmin(permissions.BasePermission):
     required_groups = ['Administrator', 'User_Manager']
     def has_object_permission(self, request, view, obj):
         has_group_permission = _has_group_permission(request.user, self.required_groups)
+        if isinstance(obj, FoodItem):
+            return obj.user == request.user or has_group_permission    
         return obj == request.user or has_group_permission

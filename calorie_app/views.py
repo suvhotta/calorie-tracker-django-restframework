@@ -28,18 +28,15 @@ class UserRegisterView(viewsets.ModelViewSet):
     """
     View to create User
     """
-    # permission_classes = (IsUserManagerOrAdmin, )
-    queryset = User.objects.filter(is_staff=False)
+    permission_classes = [IsUserManagerOrAdmin]
+    # permissions = [IsUserManagerOrAdmin]
     serializer_class = UserRegisterSerializer
 
     def get_queryset(self):
-        try:
-            if self.request.user.groups.first().name not in ("Administrator", "User_Manager"):
-                return User.objects.filter(username=self.request.user.username)
+        if self.request.user.groups.first().name not in ("Administrator", "User_Manager"):
+            return User.objects.filter(user=self.request.user).filter(is_staff=False)
                 
-            return User.objects.all()
-        except (AttributeError, TypeError):
-            raise PermissionError("User isn't authorized here.")
+        return User.objects.filter(is_staff=False).all()
     
 
 class UserLoginView(views.APIView):
