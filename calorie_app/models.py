@@ -5,7 +5,6 @@ from django.db import models
 from django_filters import rest_framework as filters
 
 User = get_user_model()
-# Create your models here.
 class FoodItem(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True)
