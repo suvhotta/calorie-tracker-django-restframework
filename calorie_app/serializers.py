@@ -92,10 +92,10 @@ class UserRegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'password', 'profile', 'groups']
-        extra_kwargs = {'password':{'write_only':True,'style':{'input_type':'password'}}}
+        extra_kwargs = {'password':{'write_only':True, 'style':{'input_type':'password'}}}
 
     def validate_groups(self, value):
-        if len(value)>1:
+        if len(value) != 1:
             raise ValidationError("Please enter a single group.", code=404)
         return value
 

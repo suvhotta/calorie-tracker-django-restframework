@@ -123,8 +123,12 @@ class TestingAPI(APITestCase):
                          .format(response.status_code))
         self.assertTrue("token" in json.loads(response.content))
 
+    def test_authentication_without_username(self):
+        response = self.client.post(reverse('register'), {"password": "user1"})
+        self.assertEqual(400, response.status_code)
+
     def test_authentication_without_password(self):
-        response = self.client.post(self.url, {"username": "snowman"})
+        response = self.client.post(reverse('register'), {"username": "snowman"})
         self.assertEqual(400, response.status_code)
 
     def test_authentication_with_wrong_password(self):
@@ -154,7 +158,65 @@ class TestingAPI(APITestCase):
             HTTP_AUTHORIZATION=f'Token {self.token1.key}'
         )
         self.assertEqual(response.status_code, 201, f'Expected Response Code 201, received {response.status_code} instead.')
-
+    
+    def test_add_user_missing_values(self):
+        #blank username
+        self.valid_payload = {
+            "username":"",
+            "password":"user4",
+            "groups":['Normal_User'],
+            "profile":{
+                "max_calories":1920
+            }
+        }
+        response = self.client.post(
+            reverse('register'),
+            self.valid_payload, format="json",
+            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
+        )
+        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
+        
+        self.valid_payload = {
+            "username":"user4",
+            "groups":['Normal_User'],
+            "profile":{
+                "max_calories":1920
+            }
+        }
+        response = self.client.post(
+            reverse('register'),
+            self.valid_payload, format="json",
+            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
+        )
+        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
+        
+        self.valid_payload = {
+            "username":"user4",
+            "password":"user4",
+            "groups":[],
+            "profile":{
+                "max_calories":1920
+            }
+        }
+        response = self.client.post(
+            reverse('register'),
+            self.valid_payload, format="json",
+            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
+        )
+        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
+        
+        self.valid_payload = {
+            "username":"user4",
+            "password":"user4",
+            "groups":['Normal_User']
+        }
+        response = self.client.post(
+            reverse('register'),
+            self.valid_payload, format="json",
+            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
+        )
+        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
+        
     def test_unique_username_validation(self):
         """
         Test to verify that a post call with already exists username
