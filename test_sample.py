@@ -463,7 +463,6 @@ class TestingAPI(APITestCase):
             reverse('food-details', kwargs={'pk':FoodItem.objects.filter(user=self.user3).first().pk}),
             HTTP_AUTHORIZATION = f'token {self.token3.key}'
         )
-        print(response.data)
         self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
 
     def test_edit_self_added_fooditems(self):
@@ -488,4 +487,86 @@ class TestingAPI(APITestCase):
         )
         self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
         
+    def test_delete_fooditem(self):
+        self.payload = {
+            "food_item":"Friedrice",
+            "num_of_calories":450
+        }
+        response = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token3.key}'
+        )
         
+        #deleting self added food items
+        response = self.client.delete(
+            reverse('food-details', kwargs={'pk':FoodItem.objects.filter(user=self.user3).first().pk}),
+            HTTP_AUTHORIZATION = f'token {self.token3.key}'
+        )
+        self.assertEqual(response.status_code, 204, f'Expected Response Code 204, received {response.status_code} instead.')
+
+    def test_get_all_fooditems(self):
+        self.payload = {
+            "food_item":"Friedrice",
+            "num_of_calories":450
+        }
+        response = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token2.key}'
+        )
+
+        self.payload = {
+            "food_item":"Chicken Burger"
+        }
+        response = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token3.key}'
+        )
+        #checking if admin can get all fooditems list
+        response = self.client.get(
+            reverse('fooditem'),
+            HTTP_AUTHORIZATION = f'token {self.token1.key}'
+        )
+        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
+
+    def test_check_normal_user_permissions(self):
+        #adding a new user
+        self.valid_payload = {
+            "username":"user4",
+            "password":"user4",
+            "groups":['Normal_User'],
+            "profile":{
+                "max_calories":1920
+            }
+        }
+        response = self.client.post(
+            reverse('register'),
+            self.valid_payload, format="json",
+            HTTP_AUTHORIZATION=f'Token {self.token3.key}'
+        )
+        self.assertEqual(response.status_code, 403, f'Expected Response Code 403, received {response.status_code} instead.')
+
+        #viewing another user details
+        response = self.client.get(
+            reverse('user-details', kwargs={'pk':self.user2.pk}),
+            HTTP_AUTHORIZATION=f'Token {self.token3.key}'
+        )
+        self.assertEqual(response.status_code, 404, f'Expected Response Code 404, received {response.status_code} instead.')
+
+        #viewing other user fooditems
+        self.payload = {
+            "food_item":"Friedrice",
+            "num_of_calories":450
+        }
+        response = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token2.key}'
+        )
+        response = self.client.get(
+            reverse('food-details', kwargs={'pk':1}),
+            HTTP_AUTHORIZATION = f'token {self.token3.key}'
+        )
+        self.assertEqual(response.status_code, 404, f'Expected Response Code 404, received {response.status_code} instead.')

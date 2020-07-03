@@ -7,6 +7,7 @@ from django.contrib.auth.models import Group, User
 from django.db.models import Sum
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
+from rest_framework.exceptions import PermissionDenied
 
 from calorie_app.models import FoodItem, UserProfile
 
@@ -88,6 +89,11 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ['username', 'password', 'profile', 'groups']
         extra_kwargs = {'password':{'write_only':True, 'style':{'input_type':'password'}}}
+
+    def validate(self, data):
+        if self.context["request"].user.groups.first().name not in ("Administrator", "User_Manager"):
+            raise PermissionDenied({"message":"You don't have permission to access"},code=403)
+        return data
 
     def validate_groups(self, value):
         if len(value) != 1:

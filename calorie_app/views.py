@@ -34,7 +34,7 @@ class UserRegisterView(viewsets.ModelViewSet):
 
     def get_queryset(self):
         if self.request.user.groups.first().name not in ("Administrator", "User_Manager"):
-            return User.objects.filter(user=self.request.user).filter(is_staff=False)
+            return User.objects.filter(username=self.request.user.username).filter(is_staff=False)
                 
         return User.objects.filter(is_staff=False).all()
     
