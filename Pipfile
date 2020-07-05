@@ -15,6 +15,7 @@ pytest = "*"
 coverage = "*"
 pytest-django = "*"
 pytest-cov = "*"
+django-rql = "*"
 
 [requires]
 python_version = "3.7"

@@ -25,6 +25,10 @@ class IsUserManagerOrAdmin(permissions.BasePermission):
     Permission to allow only a usermanager/admin to modify User accounts.
     """
     required_groups = ['Administrator', 'User_Manager']
+    # def has_permission(self, request, view):
+    #     has_group_permission = _has_group_permission(request.user, self.required_groups)
+    #     return request.user and has_group_permission
+
     def has_object_permission(self, request, view, obj):
         has_group_permission = _has_group_permission(request.user, self.required_groups)
         if isinstance(obj, FoodItem):

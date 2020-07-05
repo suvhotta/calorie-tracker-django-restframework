@@ -11,13 +11,12 @@ from rest_framework.exceptions import PermissionDenied
 
 from calorie_app.models import FoodItem, UserProfile
 
-
 class FoodItemSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
     class Meta:
         model = FoodItem
-        read_only_fields = ['user', 'timestamp', 'calories_exceeded']
-        exclude = ['id',]
+        fields = '__all__'
+        read_only_fields = ['user', 'timestamp', 'calories_exceeded', 'id']
         ordering = ['-timestamp']
 
     def validate(self, data):
@@ -87,13 +86,8 @@ class UserRegisterSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['username', 'password', 'profile', 'groups']
+        fields = ['username', 'password', 'profile', 'groups', 'id']
         extra_kwargs = {'password':{'write_only':True, 'style':{'input_type':'password'}}}
-
-    def validate(self, data):
-        if self.context["request"].user.groups.first().name not in ("Administrator", "User_Manager"):
-            raise PermissionDenied({"message":"You don't have permission to access"},code=403)
-        return data
 
     def validate_groups(self, value):
         if len(value) != 1:

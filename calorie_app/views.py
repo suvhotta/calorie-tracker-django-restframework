@@ -11,13 +11,15 @@ from calorie_app.serializers import (FoodItemSerializer,
                                     UserRegisterSerializer)
 
 from .permissions import IsOwnerOrAdmin, IsUserManagerOrAdmin
+from dj_rql.drf.backend import RQLFilterBackend
+from rest_framework.exceptions import PermissionDenied
 
 
 class FoodItemView(viewsets.ModelViewSet):
     permission_classes = [IsOwnerOrAdmin]
     serializer_class = FoodItemSerializer
-    filter_backends = (filters.DjangoFilterBackend,)
-    filterset_class = FoodFilter
+    filter_backends = (RQLFilterBackend,)
+    rql_filter_class = FoodFilter
     def get_queryset(self):
         if self.request.user.groups.first().name != "Administrator":
             return FoodItem.objects.filter(user=self.request.user)
@@ -32,6 +34,11 @@ class UserRegisterView(viewsets.ModelViewSet):
     # permissions = [IsUserManagerOrAdmin]
     serializer_class = UserRegisterSerializer
 
+    def create(self, request, *args, **kwargs):
+        if request.user.groups.first().name not in ("Administrator", "User_Manager"):
+            raise PermissionDenied({"message":"You don't have permission to access"}, code=403)
+        return super(UserRegisterView, self).create(request, *args, **kwargs)
+        
     def get_queryset(self):
         if self.request.user.groups.first().name not in ("Administrator", "User_Manager"):
             return User.objects.filter(username=self.request.user.username).filter(is_staff=False)

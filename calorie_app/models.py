@@ -3,6 +3,9 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
 from django.db import models
 from django_filters import rest_framework as filters
+from dj_rql.constants import FilterLookups
+from dj_rql.filter_cls import RQLFilterClass
+from dj_rql.constants import FilterLookups
 
 User = get_user_model()
 class FoodItem(models.Model):
@@ -21,11 +24,29 @@ class UserProfile(models.Model):
         return f"User: {self.user}, Max_calories: {self.max_calories}"
 
 
-class FoodFilter(filters.FilterSet):
-    class Meta:
-        model = FoodItem
-        fields = {
-            'num_of_calories':['lt', 'gt', 'exact', 'lte', 'gte'],
-            'food_item':['exact', 'icontains'],
-            'timestamp':['lt', 'gt', 'exact', 'lte', 'gte'],
-        }
+class FoodFilter(RQLFilterClass):
+    MODEL = FoodItem
+    SELECT = True
+    FILTERS = [
+        'id', {
+            'filter':'item',
+            'source':'food_item',
+            'search':True
+        }, {
+            'filter':'consumer',
+            'source':'user__username',
+            'search': True,
+        }, {
+            'filter':'date',
+            'source':'timestamp',
+        }, {
+        # Some fields may have no DB representation or non-typical ORM filtering
+        # `custom` option must be set to True for such fields
+        'filter': 'custom_filter',
+        'custom': True,
+        'lookups': {FilterLookups.EQ, FilterLookups.IN, FilterLookups.I_LIKE},
+        'ordering': True,
+        'search': True,
+        
+        'custom_data': [1],
+    }]
