@@ -9,6 +9,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient, APIRequestFactory, APITestCase
 
 import calorie_app.views as apiviews
+from calorie_app.serializers import UserRegisterSerializer, ProfileSerializer
 from calorie_app.models import FoodItem, UserProfile
 
 
@@ -103,511 +104,596 @@ class TestingAPI(APITestCase):
         UserProfile.objects.create(user=user, max_calories=max_calories)
         return user
 
-    def test_get_all_users_list(self):      
-        request = self.factory.get(self.url,
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}')
-        response = self.view(request)
-        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
+    def test_get_all_users_list(self): 
+        test_cases = [
+            {
+                "name":"by_admin",
+                "user":self.user1,
+                "token":self.token1.key,
+            }, {
+                "name":"by_UserManager",
+                "user":self.user2,
+                "token":self.token2.key,
+            }, {
+                "name":"by_NormalUser",
+                "user":self.user3,
+                "token":self.token3.key,
+            }
+        ]
+        for i in range(len(test_cases)):
+            response = self.client.get(
+                reverse('register'),
+                HTTP_AUTHORIZATION=f'Token {test_cases[i]["token"]}'    
+            )
+            self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
+            users = get_user_model().objects.all()
+            #users with groups Normal_User will only be able to see their details
+            if test_cases[i]["user"].groups.filter(name="Normal_User").exists():
+                users = get_user_model().objects.filter(username=test_cases[i]["user"].username)
+            user_serializer = UserRegisterSerializer(users, many=True)
+            self.assertEqual(response.data['results'], user_serializer.data)           
 
     def test_login_user(self):
-        #login with correct credentials
-        self.valid_payload = {
-            "username":"user1",
-            "password":"user1"
-        }
-        response = self.client.post(
-            reverse('login'),
-            self.valid_payload
-        )
-        self.assertEqual(response.status_code, 201,
-                         'Expected Response Code 201, received {0} instead.'
-                         .format(response.status_code))
-        self.assertTrue("token" in json.loads(response.content))
-
-        #logging in with without password
-        self.valid_payload = {
-            "username":"user1",
-            "password":""
-        }
-        response = self.client.post(
-            reverse('login'),
-            self.valid_payload
-        )
-        self.assertEqual(response.status_code, 400,
-                         'Expected Response Code 400, received {0} instead.'
-                         .format(response.status_code))
-
-        #logging with wrong credentials
-        self.valid_payload = {
-            "username":"user1",
-            "password":"users"
-        }
-        response = self.client.post(
-            reverse('login'),
-            self.valid_payload
-        )
-        self.assertEqual(response.status_code, 400,
-                         'Expected Response Code 400, received {0} instead.'
-                         .format(response.status_code))
-
-    def test_authentication_without_username(self):
-        response = self.client.post(reverse('login'), {"password": "user1"})
-        self.assertEqual(400, response.status_code)
-
-    def test_authentication_without_password(self):
-        response = self.client.post(reverse('login'), {"username": "snowman"})
-        self.assertEqual(400, response.status_code)
-
-    def test_authentication_with_wrong_password(self):
-        response = self.client.post(reverse('login'), {"username": self.user1.username, "password": "I_know"})
-        self.assertEqual(400, response.status_code)
-
-    def test_admin_get_user_details(self):
-        response = self.client.get(
-            reverse('user-details', kwargs={'pk':self.user2.pk}),
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
-        )
-        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
-        # self.assertEqual(response.data, {'username':'user2', 'profile':{'user':'user2','max_calories':1990}, 'groups':['User_Manager']})
-
-    def test_admin_add_new_user(self):
-        self.valid_payload = {
-            "username":"user4",
-            "password":"user4",
-            "groups":['Normal_User'],
-            "profile":{
-                "max_calories":1920
+        test_cases = [
+            {
+                "name":"Admin_login",
+                "username":self.user1.username,
+                "token":self.token1.key,
+                "password":'user1',
+                "status_code":201,
+            }, {
+                "name":"User_manager_login",
+                "username":self.user2.username,
+                "token":self.token2.key,
+                "password":'user2',
+                "status_code":201,
+            }, {
+                "name":"Normal_User_login",
+                "username":self.user3.username,
+                "token":self.token3.key,
+                "password":'user3',
+                "status_code":201,
+            }, {
+                "name":"Without_pwd_login",
+                "username":self.user1.username,
+                "password":"",
+                "status_code":400,
+            }, {
+                "name":"Wrong_pwd_login",
+                "username":"user1",
+                "password":"user1"+"abc",
+                "status_code":400,
             }
-        }
-        response = self.client.post(
-            reverse('register'),
-            self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
-        )
-        self.assertEqual(response.status_code, 201, f'Expected Response Code 201, received {response.status_code} instead.')
-        response = self.client.get(
-            reverse('user-details', kwargs={'pk':4}),
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
-        )
-        self.assertEqual(response.status_code, 200, f'Expected Response Code 201, received {response.status_code} instead.')
+        ]
 
-    def test_add_user_nonexisting_group(self):
-        self.valid_payload = {
-            "username":"user4",
-            "password":"user4",
-            "groups":['gibberish'],
-            "profile":{
-                "max_calories":1920
+        for i in range(len(test_cases)):
+            payload = {
+                "username":test_cases[i]["username"],
+                "password":test_cases[i]["password"],
             }
-        }
-        response = self.client.post(
-            reverse('register'),
-            self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
-        )
-        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
+            response = self.client.post(
+                reverse('login'),
+                payload
+            )
+            self.assertEqual(response.status_code, test_cases[i]["status_code"],
+                         f'Expected Response Code {test_cases[i]["status_code"]}, received {response.status_code} instead.')
+
+            if(test_cases[i]["status_code"]) == 201:
+                self.assertEqual(response.data["token"], test_cases[i]["token"])
+                         
+    def test_get_user_details(self):
+        test_cases = [
+            {
+                "name":"Admin get user details",
+                "user":self.user1,
+                "check_users": [self.user2, self.user3],
+                "token":self.token1.key,
+                "expected_status_code":200,
+            }, {
+                "name":"User_Manager get user details",
+                "user":self.user2,
+                "check_users": [self.user1, self.user3],
+                "token":self.token2.key,
+                "expected_status_code":200,
+            }, {
+                "name":"Normal_User get user details",
+                "user":self.user3,
+                "check_users": [self.user1, self.user2],
+                "token":self.token3.key,
+                "expected_status_code":404,
+            }
+        ]
         
-    def test_add_user_missing_values(self):
-        # cases = [
-        #     {
-        #         'name': 'User create with missing values should fail'
-        #         'payload': '',
-        #         'method': '',
-        #         'expectCode': '',
-        #         'expectBody': {},
-        #         'expectNotInBody': ['password', 'groups.pk']
-        #     }
-        # ]
+        for i in range(len(test_cases)):
+            for user in test_cases[i]["check_users"]:
+                response = self.client.get(
+                    reverse('user-details', kwargs={'pk':user.pk}),
+                    HTTP_AUTHORIZATION=f'Token {test_cases[i]["token"]}'
+                )
+                self.assertEqual(response.status_code, test_cases[i]["expected_status_code"], f'Expected Response Code {test_cases[i]["expected_status_code"]}, received {response.status_code} instead.')
+                if test_cases[i]["expected_status_code"] == 200:                    
+                    self.assertEqual(response.data['username'], user.username)
+                    self.assertEqual(response.data['id'], user.pk)
 
-        # for c in cases:
-        #     res = self.client.post()
-
-        #blank username
-        self.valid_payload = {
-            "username":"",
-            "password":"user4",
-            "groups":['Normal_User'],
-            "profile":{
-                "max_calories":1920
+    def test_add_new_user(self):
+        test_cases = [
+            {
+                "name":"By_Admin",
+                "user_data": {
+                    "username":"user4",
+                    "password":"user4",
+                    "groups":["Normal_User"],
+                    "profile":{
+                        "max_calories":1920
+                    }
+                },
+                "token":self.token1.key,
+                "expected_code":201,
+            }, {
+                "name":"By_User_Manager",
+                "user_data": {
+                    "username":"user5",
+                    "password":"user5",
+                    "groups":["Normal_User"],
+                    "profile":{
+                        "max_calories":2120
+                    }
+                },
+                "token":self.token2.key,
+                "expected_code":201,
+            }, {
+                "name":"By_Normal_User",
+                "user_data": {
+                    "username":"user6",
+                    "password":"user6",
+                    "groups":["Normal_User"],
+                    "profile":{
+                        "max_calories":2120
+                    }
+                },
+                "token":self.token3.key,
+                "expected_code":403,
+            }, {
+                "name":"non_existing_group",
+                "user_data": {
+                    "username":"user6",
+                    "password":"user6",
+                    "groups":["gibberish"],
+                    "profile":{
+                        "max_calories":2120
+                    }
+                },
+                "token":self.token2.key,
+                "expected_code":400,
+            }, {
+                "name":"missing_username",
+                "user_data": {
+                    "username":"",
+                    "password":"user6",
+                    "groups":["Normal_User"],
+                    "profile":{
+                        "max_calories":2120
+                    }
+                },
+                "token":self.token2.key,
+                "expected_code":400,
+            }, {
+                "name":"missing_password",
+                "user_data": {
+                    "username":"user6",
+                    "password":"",
+                    "groups":["Normal_User"],
+                    "profile":{
+                        "max_calories":2120
+                    }
+                },
+                "token":self.token2.key,
+                "expected_code":400,
+            }, {
+                "name":"missing_groups",
+                "user_data": {
+                    "username":"user6",
+                    "password":"acv",
+                    "groups":[],
+                    "profile":{
+                        "max_calories":2120
+                    }
+                },
+                "token":self.token2.key,
+                "expected_code":400,
+            }, {
+                "name":"missing_max_calories",
+                "user_data": {
+                    "username":"user6",
+                    "password":"",
+                    "groups":["Normal_User"],
+                },
+                "token":self.token2.key,
+                "expected_code":400,
+            }, {
+                "name":"max_calories_zero",
+                "user_data": {
+                    "username":"user6",
+                    "password":"acv",
+                    "groups":["Normal_User"],
+                    "profile":{
+                        "max_calories":0
+                    }
+                },
+                "token":self.token2.key,
+                "expected_code":400,
+            }, {
+                "name":"existing_username",
+                "user_data": {
+                    "username":"user3",
+                    "password":"acv",
+                    "groups":["Normal_User"],
+                    "profile":{
+                        "max_calories":1270
+                    }
+                },
+                "token":self.token2.key,
+                "expected_code":400,
             }
-        }
-        response = self.client.post(
-            reverse('register'),
-            self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
-        )
-        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
-        
-        #no password
-        self.valid_payload = {
-            "username":"user4",
-            "groups":['Normal_User'],
-            "profile":{
-                "max_calories":1920
+            
+        ]
+        for i in range(len(test_cases)):
+            response = self.client.post(
+                reverse('register'),
+                test_cases[i]["user_data"], format="json",
+                HTTP_AUTHORIZATION=f'Token {test_cases[i]["token"]}'
+            )
+            self.assertEqual(response.status_code, test_cases[i]["expected_code"], f'Expected Response Code {test_cases[i]["expected_code"]}, received {response.status_code} instead.')
+            if response.status_code == 201:
+                user = get_user_model().objects.filter(username=test_cases[i]["user_data"]["username"]).first()
+                response = self.client.get(
+                    reverse('user-details', kwargs={'pk':user.pk}),
+                    HTTP_AUTHORIZATION=f'Token {test_cases[i]["token"]}'
+                )
+                self.assertEqual(response.data['username'], user.username)
+                self.assertEqual(response.data['id'], user.pk)
+                self.assertEqual(response.data['groups'], [g.name for g in user.groups.all()])
+                self.assertEqual(response.data['profile']['max_calories'], user.profile.max_calories)
+                self.assertEqual(response.data['profile']['user'], user.profile.user.username)
+
+    def test_remove_user(self):
+        test_cases = [
+            {
+                "name":"by_Normal_User",
+                "removed_user":self.user1,
+                "token":self.token3.key,
+                "expected_code":404,
+            }, {
+                "name":"by_admin",
+                "removed_user":self.user3,
+                "token":self.token1.key,
+                "expected_code":204,
+            }, {
+                "name":"by_User_Manager",
+                "removed_user":self.user1,
+                "token":self.token2.key,
+                "expected_code":204,
+            }, {
+                "name":"deleting_self",
+                "removed_user":self.user2,
+                "token":self.token2.key,
+                "expected_code":204,
             }
-        }
-        response = self.client.post(
-            reverse('register'),
-            self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
-        )
-        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
-        
-        #blank group
-        self.valid_payload = {
-            "username":"user4",
-            "password":"user4",
-            "groups":[],
-            "profile":{
-                "max_calories":1920
+        ]
+
+        for i in range(len(test_cases)):
+            response = self.client.delete(
+                reverse('user-details', kwargs={'pk':test_cases[i]["removed_user"].pk}),
+                HTTP_AUTHORIZATION=f'Token {test_cases[i]["token"]}'
+            )
+            self.assertEqual(response.status_code, test_cases[i]["expected_code"], f'Expected Response Code {test_cases[i]["expected_code"]}, received {response.status_code} instead.')
+            if response.status_code == 204:
+                user = get_user_model().objects.filter(id=test_cases[i]['removed_user'].pk).exists()
+                self.assertEqual(user, False)
+                
+    def test_edit_user_details(self):
+        test_cases = [
+            {
+                "name":"by_admin",
+                "payload":{
+                    "profile":{
+                        "max_calories":2123
+                    }
+                },
+                "user":self.user2,
+                "token":self.token1.key,
+                "method":self.client.patch,
+                "expected_code":200,
+            }, {
+                "name":"by_User_Manager",
+                "payload":{
+                    "username":"user4"
+                },
+                "user":self.user1,
+                "token":self.token2.key,
+                "method":self.client.patch,
+                "expected_code":200,
+            }, {
+                "name":"by_Normal_User",
+                "payload":{
+                    "groups":["User_Manager",]
+                },
+                "user":self.user2,
+                "token":self.token3.key,
+                "method":self.client.patch,
+                "expected_code":404,
+            }, {
+                "name":"patch_Groups",
+                "payload":{
+                    "groups":["Administrator",]
+                },
+                "user":self.user2,
+                "token":self.token1.key,
+                "method":self.client.patch,
+                "expected_code":200,
+            }, {
+                "name":"put_user_details",
+                "payload":{
+                    "username":self.user2.username,
+                    "password":self.user2.username,
+                    "profile":{
+                        "user":"user2",
+                        "max_calories":2120
+                    },
+                "groups":['User_Manager']
+                },
+                "user":self.user2,
+                "token":self.token1.key,
+                "method":self.client.put,
+                "expected_code":200,
             }
-        }
-        response = self.client.post(
-            reverse('register'),
-            self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
-        )
-        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
-        
-        #no max_calories field
-        self.valid_payload = {
-            "username":"user4",
-            "password":"user4",
-            "groups":['Normal_User']
-        }
-        response = self.client.post(
-            reverse('register'),
-            self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
-        )
-        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
+        ]
 
-        #setting max_calories_field to 0
-        self.valid_payload = {
-            "username":"user4",
-            "password":"user4",
-            "groups":['Normal_User'],
-            "profile":{
-                "max_calories":0
-            }
-        }
-        response = self.client.post(
-            reverse('register'),
-            self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
-        )
-        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
-        
-        #setting max_calories as decimal
-        self.valid_payload = {
-            "username":"user4",
-            "password":"user4",
-            "groups":['Normal_User'],
-            "profile":{
-                "max_calories":1020.5
-            }
-        }
-        response = self.client.post(
-            reverse('register'),
-            self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
-        )
-        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
-        
-    def test_unique_username_validation(self):
-        """
-        Test to verify that a post call with already exists username
-        """
-        user_data_1 = {
-            "username":"user4",
-            "password":"user4",
-            "groups":['Normal_User'],
-            "profile":{
-                "max_calories":1920
-            }
-        }
-        response = self.client.post(
-            reverse('register'),
-            user_data_1, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
-        )
-        self.assertEqual(201, response.status_code)
+        for i in range(len(test_cases)):
+            response = test_cases[i]["method"](
+                reverse('user-details', kwargs={'pk': test_cases[i]["user"].pk}),
+                test_cases[i]["payload"], format="json",
+                HTTP_AUTHORIZATION=f'Token {test_cases[i]["token"]}')
+            self.assertEqual(response.status_code, test_cases[i]["expected_code"], f'Expected Response Code {test_cases[i]["expected_code"]}, received {response.status_code} instead.')
 
-        user_data_2 = {
-            "username":"user4",
-            "password":"user4",
-            "groups":['Normal_User'],
-            "profile":{
-                "max_calories":1920
-            }
-        }
-        response = self.client.post(
-            reverse('register'),
-            user_data_2, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}'
-        )
-    #TODO
-
-    def test_admin_remove_user(self): 
-        response = self.client.delete(
-            reverse('user-details', kwargs={'pk': self.user2.pk}),
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}')
-        self.assertEqual(response.status_code, 204, f'Expected Response Code 204, received {response.status_code} instead.')
-
-    def test_admin_patch_user(self):
-        self.valid_payload={
-            "profile":{
-                "max_calories":2120
-            }
-        }
-        response = self.client.patch(
-            reverse('user-details', kwargs={'pk': self.user2.pk}),
-            self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}')
-        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
-
-    def test_admin_put_user(self):
-        self.valid_payload={
-            "username":self.user2.username,
-            "password":self.user2.password,
-            "profile":{
-                "user":"user2",
-                "max_calories":2120
-            },
-            "groups":['User_Manager']
-        }
-        response = self.client.put(
-            reverse('user-details', kwargs={'pk': self.user2.pk}),
-            self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token1.key}')
-        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
-
-    def test_user_manager_add_new_user(self):
-        self.valid_payload = {
-            "username":"user4",
-            "password":"user4",
-            "groups":['Normal_User'],
-            "profile":{
-                "max_calories":1920
-            }
-        }
-        response = self.client.post(
-            reverse('register'),
-            self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token2.key}'
-        )
-        self.assertEqual(response.status_code, 201, f'Expected Response Code 201, received {response.status_code} instead.')
-
-    def test_user_manager_remove_user(self): 
-        response = self.client.delete(
-            reverse('user-details', kwargs={'pk': self.user3.pk}),
-            HTTP_AUTHORIZATION=f'Token {self.token2.key}')
-        self.assertEqual(response.status_code, 204, f'Expected Response Code 204, received {response.status_code} instead.')
-
-    def test_user_manager_patch_user(self):
-        self.valid_payload={
-            "profile":{
-                "max_calories":2120
-            }
-        }
-        response = self.client.patch(
-            reverse('user-details', kwargs={'pk': self.user3.pk}),
-            self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token2.key}')
-        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
-
-    def test_user_manager_put_user(self):
-        self.valid_payload={
-            "username":self.user3.username,
-            "password":self.user3.password,
-            "profile":{
-                "user":"user3",
-                "max_calories":2120
-            },
-            "groups":['User_Manager']
-        }
-        response = self.client.put(
-            reverse('user-details', kwargs={'pk': self.user3.pk}),
-            self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token2.key}')
-        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
-
+            if(response.status_code == 200):
+                for key, value in test_cases[i]["payload"].items():
+                    #checking if it is a nested dictionary, for profile.max_calories
+                    if isinstance(value, dict):
+                        for key1 in value.keys():
+                            self.assertEqual(dict(response.data.get(key)).get(key1), test_cases[i]["payload"][key][key1])        
+                    #not checking the password field as it is write-only and won't be returned in the response.
+                    elif key == "password":
+                        pass
+                    else:
+                        self.assertEqual(response.data.get(key), test_cases[i]["payload"][key])
+       
     def test_add_fooditem(self):
-        #adding food-item with calories
-        self.payload = {
-            "food_item":"Friedrice",
-            "num_of_calories":450
-        }
-        response = self.client.post(
-            reverse('fooditem'),
-            self.payload,
-            HTTP_AUTHORIZATION = f'token {self.token3.key}'
-        )
-        self.assertEqual(response.status_code, 201, f'Expected Response Code 200, received {response.status_code} instead.')
+        test_cases = [
+            {
+                "name":"with calories",
+                "payload":{
+                    "food_item":"Friedrice",
+                    "num_of_calories":450
+                },
+                "token":self.token1.key,
+                "method":self.client.post,
+                "expected_code":201
+            }, {
+                "name":"without_calories",
+                "payload":{
+                    "food_item":"Chicken burger",
+                },
+                "token":self.token2.key,
+                "method":self.client.post,
+                "expected_code":201
+            }, {
+                "name":"gibberish_food_item_in_api",
+                "payload":{
+                    "food_item":"asdasdasd"
+                },
+                "token":self.token2.key,
+                "method":self.client.post,
+                "expected_code":400
+            }
+        ]
 
-        #adding fooditem without calories field:
-        self.payload = {
-            "food_item":"chicken burger"
-        }
-        response = self.client.post(
-            reverse('fooditem'),
-            self.payload,
-            HTTP_AUTHORIZATION = f'token {self.token3.key}'
-        )
-        self.assertEqual(response.status_code, 201, f'Expected Response Code 200, received {response.status_code} instead.')
-
-        #adding fooditem with gibberish and checking api response
-        self.payload = {
-            "food_item":"Gibberish"
-        }
-        response = self.client.post(
-            reverse('fooditem'),
-            self.payload,
-            HTTP_AUTHORIZATION = f'token {self.token3.key}'
-        )
-        self.assertEqual(response.status_code, 400, f'Expected Response Code 400, received {response.status_code} instead.')
+        for i in range(len(test_cases)):
+            response = test_cases[i]["method"](
+                reverse('fooditem'),
+                test_cases[i]["payload"],
+                HTTP_AUTHORIZATION = f'token {test_cases[i]["token"]}'
+            )
+            self.assertEqual(response.status_code, test_cases[i]["expected_code"], f'Expected Response Code {test_cases[i]["expected_code"]}, received {response.status_code} instead.')
+            if response.status_code == 201:
+                food_item = FoodItem.objects.filter(id=response.data['id']).first()
+                self.assertEqual(test_cases[i]["payload"]["food_item"], food_item.food_item)
+                if test_cases[i]["payload"].get("num_of_calories"):
+                    self.assertEqual(test_cases[i]["payload"]["num_of_calories"], food_item.num_of_calories)
 
     def test_view_fooditem(self):
         self.payload = {
-            "food_item":"Friedrice",
+            "food_item":"Fried rice",
             "num_of_calories":450
         }
-        response = self.client.post(
+        response1 = self.client.post(
             reverse('fooditem'),
             self.payload,
-            HTTP_AUTHORIZATION = f'token {self.token3.key}'
-        )
-        
-        #checking self added food items
-        response = self.client.get(
-            reverse('food-details', kwargs={'pk':FoodItem.objects.filter(user=self.user3).first().pk}),
-            HTTP_AUTHORIZATION = f'token {self.token3.key}'
-        )
-        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
-
-    def test_edit_self_added_fooditems(self):
-        #checking patch method for food items
-        self.payload = {
-            "food_item":"Friedrice",
-            "num_of_calories":450
-        }
-        _ = self.client.post(
-            reverse('fooditem'),
-            self.payload,
-            HTTP_AUTHORIZATION = f'token {self.token3.key}'
-        )
-        
-        self.payload = {
-            "num_of_calories":520
-        }
-        response = self.client.patch(
-            reverse('food-details', kwargs={'pk':1}),
-            self.payload,
-            HTTP_AUTHORIZATION = f'token {self.token3.key}'
-        )
-        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
-        
-    def test_delete_fooditem(self):
-        self.payload = {
-            "food_item":"Friedrice",
-            "num_of_calories":450
-        }
-        response = self.client.post(
-            reverse('fooditem'),
-            self.payload,
-            HTTP_AUTHORIZATION = f'token {self.token3.key}'
-        )
-        
-        #deleting self added food items
-        response = self.client.delete(
-            reverse('food-details', kwargs={'pk':FoodItem.objects.filter(user=self.user3).first().pk}),
-            HTTP_AUTHORIZATION = f'token {self.token3.key}'
-        )
-        self.assertEqual(response.status_code, 204, f'Expected Response Code 204, received {response.status_code} instead.')
-
-    def test_get_all_fooditems(self):
-        self.payload = {
-            "food_item":"Friedrice",
-            "num_of_calories":450
-        }
-        response = self.client.post(
-            reverse('fooditem'),
-            self.payload,
-            HTTP_AUTHORIZATION = f'token {self.token2.key}'
-        )
-
-        self.payload = {
-            "food_item":"Chicken Burger"
-        }
-        response = self.client.post(
-            reverse('fooditem'),
-            self.payload,
-            HTTP_AUTHORIZATION = f'token {self.token3.key}'
-        )
-        #checking if admin can get all fooditems list
-        response = self.client.get(
-            reverse('fooditem'),
             HTTP_AUTHORIZATION = f'token {self.token1.key}'
         )
-        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
-
-    def test_check_normal_user_permissions(self):
-        #adding a new user
-        self.valid_payload = {
-            "username":"user4",
-            "password":"user4",
-            "groups":['Normal_User'],
-            "profile":{
-                "max_calories":1920
-            }
-        }
-        response = self.client.post(
-            reverse('register'),
-            self.valid_payload, format="json",
-            HTTP_AUTHORIZATION=f'Token {self.token3.key}'
-        )
-        self.assertEqual(response.status_code, 403, f'Expected Response Code 403, received {response.status_code} instead.')
-
-        #viewing another user details
-        response = self.client.get(
-            reverse('user-details', kwargs={'pk':self.user2.pk}),
-            HTTP_AUTHORIZATION=f'Token {self.token3.key}'
-        )
-        self.assertEqual(response.status_code, 404, f'Expected Response Code 404, received {response.status_code} instead.')
-
-        #viewing other user fooditems
         self.payload = {
-            "food_item":"Friedrice",
-            "num_of_calories":450
+            "food_item":"Chicken Soup",
+            "num_of_calories":150
         }
-        response = self.client.post(
+        response2 = self.client.post(
             reverse('fooditem'),
             self.payload,
             HTTP_AUTHORIZATION = f'token {self.token2.key}'
         )
-        response = self.client.get(
-            reverse('food-details', kwargs={'pk':1}),
+        self.payload = {
+            "food_item":"Chicken Biryani",
+            "num_of_calories":500
+        }
+        response3 = self.client.post(
+            reverse('fooditem'),
+            self.payload,
             HTTP_AUTHORIZATION = f'token {self.token3.key}'
         )
-        self.assertEqual(response.status_code, 404, f'Expected Response Code 404, received {response.status_code} instead.')
-    
-    def test_check_normal_user_details(self):
-        response = self.client.get(
-            reverse('user-details', kwargs={'pk':3}),
-            HTTP_AUTHORIZATION=f'Token {self.token3.key}'
-        )
-        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
+        test_cases = [
+            {
+                "name":"all_food_items_by_admin",
+                "view":"fooditem",
+                "token":self.token1.key,
+                "method":self.client.get,
+                "expected_code":200,
+            }, {
+                "name":"all_food_items_by_user_manager",
+                "view":"fooditem",
+                "token":self.token2.key,
+                "method":self.client.get,
+                "expected_code":200,
+            }, {
+                "name":"all_food_items_by_Normal_User",
+                "view":"fooditem",
+                "token":self.token2.key,
+                "method":self.client.get,
+                "expected_code":200,
+            }, {
+                "name":"self_check",
+                "token":self.token3.key,
+                "view":"food-details",
+                "method":self.client.get,
+                "expected_code":200,
+                "food_id":response3.data['id'],
+            }, {
+                "name":"admin_check_others",
+                "token":self.token1.key,
+                "view":"food-details",
+                "method":self.client.get,
+                "expected_code":200,
+                "food_id":response2.data['id'],
+            }, {
+                "name":"User_manager_check_others",
+                "token":self.token2.key,
+                "view":"food-details",
+                "method":self.client.get,
+                "expected_code":404,
+                "food_id":response3.data['id'],
+            }, {
+                "name":"Normal_User_check_others",
+                "token":self.token3.key,
+                "view":"food-details",
+                "method":self.client.get,
+                "expected_code":404,
+                "food_id":response1.data['id'],
+            }, 
+        ]
 
-    def test_user_change_max_calories(self):
+        for i in range(len(test_cases)):
+            if test_cases[i]["view"] == "fooditem":
+                response = test_cases[i]["method"](
+                    reverse('fooditem'),
+                    HTTP_AUTHORIZATION = f'token {test_cases[i]["token"]}'
+                )
+                self.assertEqual(response.status_code, test_cases[i]["expected_code"], f'Expected Response Code {test_cases[i]["expected_code"]}, received {response.status_code} instead.')
+                if "admin" in test_cases[i]["name"]:
+                    self.assertEqual(response.data['count'], 3)
+                else:
+                    self.assertEqual(response.data['count'], 1)
+            else:
+                response = test_cases[i]["method"](
+                    reverse('food-details', kwargs={'pk':test_cases[i]["food_id"]}),
+                    HTTP_AUTHORIZATION = f'token {test_cases[i]["token"]}'
+                )      
+                self.assertEqual(response.status_code, test_cases[i]["expected_code"], f'Expected Response Code {test_cases[i]["expected_code"]}, received {response.status_code} instead.')
+
+    def test_edit_delete_fooditems(self):
         self.payload = {
-            "profile":{
-                "max_calories":2222
-            }
+            "food_item":"Fried rice",
+            "num_of_calories":450
         }
-        response = self.client.get(
-            reverse('user-details', kwargs={'pk':3}),
+        response1 = self.client.post(
+            reverse('fooditem'),
             self.payload,
-            HTTP_AUTHORIZATION=f'Token {self.token3.key}'
+            HTTP_AUTHORIZATION = f'token {self.token1.key}'
         )
-        self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
-    #TODO changing the max_calories for a user
+        self.payload = {
+            "food_item":"Chicken Soup",
+            "num_of_calories":150
+        }
+        response2 = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token2.key}'
+        )
+        self.payload = {
+            "food_item":"Chicken Biryani",
+            "num_of_calories":500
+        }
+        response3 = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token3.key}'
+        )
+        test_cases = [
+            {
+                "name":"edit_by_admin",
+                "token":self.token1.key,
+                "method":self.client.get,
+                "food_id":response2.data['id'],
+                "expected_code":200,
+            }, {
+                "name":"edit_by_UserManager",
+                "token":self.token2.key,
+                "method":self.client.get,
+                "food_id":response1.data['id'],
+                "expected_code":404,
+            }, {
+                "name":"edit_by_NormalUser",
+                "token":self.token2.key,
+                "method":self.client.get,
+                "food_id":response1.data['id'],
+                "expected_code":404,
+            }, {
+                "name":"fooditem_patch_method",
+                "payload":{
+                    "num_of_calories":450
+                },
+                "token":self.token1.key,
+                "method":self.client.patch,
+                "food_id":response3.data['id'],
+                "expected_code":200
+            }, {
+                "name":"fooditem_delete_method",
+                "token":self.token1.key,
+                "method":self.client.delete,
+                "food_id":response3.data['id'],
+                "expected_code":204
+            }
+        ]
+
+        for i in range(len(test_cases)):
+            if "patch" in test_cases[i]["name"]:
+                response = test_cases[i]["method"](
+                    reverse('food-details', kwargs={'pk':test_cases[i]["food_id"]}),
+                    test_cases[i]["payload"], 
+                    HTTP_AUTHORIZATION = f'token {test_cases[i]["token"]}'
+                )
+
+                self.assertEqual(response.status_code, test_cases[i]["expected_code"], f'Expected Response Code {test_cases[i]["expected_code"]}, received {response.status_code} instead.')
+                if response.status_code == 200:
+                    for key in test_cases[i]["payload"].keys():
+                        payload_data = test_cases[i]["payload"][key]
+                        food_data = FoodItem.objects.filter(id=test_cases[i]["food_id"]).all().values(key).first()[key]
+                        self.assertEqual(food_data, payload_data)
+
+            elif "delete" in test_cases[i]["name"]:
+                response = response = test_cases[i]["method"](
+                    reverse('food-details', kwargs={'pk':test_cases[i]["food_id"]}),
+                    HTTP_AUTHORIZATION = f'token {test_cases[i]["token"]}'
+                )
+
+                self.assertEqual(response.status_code, test_cases[i]["expected_code"], f'Expected Response Code {test_cases[i]["expected_code"]}, received {response.status_code} instead.')
+                if response.status_code == 204:
+                    food_data = FoodItem.objects.filter(id=test_cases[i]["food_id"]).exists()
+                    self.assertEqual(False,food_data)

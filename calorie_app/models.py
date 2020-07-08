@@ -20,9 +20,6 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, related_name='profile', on_delete=models.CASCADE)
     max_calories = models.IntegerField(validators=(MinValueValidator(1, message="Minimum calories for a day should be 1."),))
 
-    def __str__(self):
-        return f"User: {self.user}, Max_calories: {self.max_calories}"
-
 
 class FoodFilter(RQLFilterClass):
     MODEL = FoodItem
