@@ -1,2 +1,2 @@
-# calorie_app_DRF
+# Calorie app
 An API to keep track of calories consumed by user
