@@ -32,6 +32,7 @@ class FoodFilter(RQLFilterClass):
         }, {
             'filter':'consumer',
             'source':'user__username',
+            # 'lookups': {FilterLookups.EQ, FilterLookups.IN, FilterLookups.I_LIKE},
             'search': True,
         }, {
             'filter':'date',
@@ -44,6 +45,5 @@ class FoodFilter(RQLFilterClass):
         'lookups': {FilterLookups.EQ, FilterLookups.IN, FilterLookups.I_LIKE},
         'ordering': True,
         'search': True,
-        
         'custom_data': [1],
     }]

@@ -1,5 +1,5 @@
 import json
-
+from datetime import datetime
 from django.contrib.auth import get_user_model, models
 from django.contrib.contenttypes.models import ContentType
 from django.test import Client, TestCase
@@ -697,3 +697,66 @@ class TestingAPI(APITestCase):
                 if response.status_code == 204:
                     food_data = FoodItem.objects.filter(id=test_cases[i]["food_id"]).exists()
                     self.assertEqual(False,food_data)
+
+    def test_filters(self):
+        self.payload = {
+            "food_item":"Fried rice",
+            "num_of_calories":450
+        }
+        response1 = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token1.key}'
+        )
+        self.payload = {
+            "food_item":"Chicken Soup",
+            "num_of_calories":150
+        }
+        response2 = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token2.key}'
+        )
+        self.payload = {
+            "food_item":"Chicken Biryani",
+            "num_of_calories":500
+        }
+        response = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token3.key}'
+        )
+        self.payload = {
+            "food_item":"Chicken Pizza",
+            "num_of_calories":600
+        }
+        response4 = self.client.post(
+            reverse('fooditem'),
+            self.payload,
+            HTTP_AUTHORIZATION = f'token {self.token3.key}'
+        )
+
+        url = f"{reverse('fooditem')}?(id=eq=1|like(item,*Pizza*))"
+        response = self.client.get(
+            url,
+            HTTP_AUTHORIZATION = f'token {self.token1.key}'
+        )
+        items = FoodItem.objects.filter(id=1)|FoodItem.objects.filter(food_item__icontains='Pizza')
+        self.assertEqual(response.data['count'], items.count())
+
+
+        url = f"{reverse('fooditem')}?(date=lt={datetime.now()}&like(item,*Rice*))"
+        response = self.client.get(
+            url,
+            HTTP_AUTHORIZATION = f'token {self.token1.key}'
+        )
+        items = FoodItem.objects.filter(timestamp__lt=datetime.now()).filter(food_item__icontains='Rice')
+        self.assertEqual(response.data['count'], items.count())
+
+        url = f"{reverse('fooditem')}?(consumer=eq=user2&like(item,*Rice*))"
+        response = self.client.get(
+            url,
+            HTTP_AUTHORIZATION = f'token {self.token1.key}'
+        )
+        items = FoodItem.objects.filter(user__username='user2').filter(food_item__icontains='Rice')
+        self.assertEqual(response.data['count'], items.count())
