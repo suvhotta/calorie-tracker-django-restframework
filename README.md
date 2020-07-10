@@ -6,5 +6,6 @@ An API to keep track of calories consumed by user
  $ cd calorie_app_DRF`<br/>`
  $ pipenv install`<br/>`
  $ pipenv shell`<br/>
+ (api) `$ ./manage.py runserver`<br/>
 - Then install the virtual env and all the dependencies `pipenv install` <br/>
 - Once the virtual env has been configured with the dependencies, proceed to creating the necessary databases and tables. <br/> `python manage.py migrate`
