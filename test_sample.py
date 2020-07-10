@@ -122,7 +122,7 @@ class TestingAPI(APITestCase):
         ]
         for i in range(len(test_cases)):
             response = self.client.get(
-                reverse('register'),
+                reverse('users'),
                 HTTP_AUTHORIZATION=f'Token {test_cases[i]["token"]}'    
             )
             self.assertEqual(response.status_code, 200, f'Expected Response Code 200, received {response.status_code} instead.')
