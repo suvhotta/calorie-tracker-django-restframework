@@ -34,8 +34,8 @@ In a RESTful API, endpoints (URLs) define the structure of the API and how end u
 | users/pk  | PATCH       | UPDATE | Updates a user       |
 | users/pk  | DELETE      | DELETE | Deletes a user       |
 | fooditem  | POST      | CREATE | Creates a food entry   |
-| fooditem  | GET      | READ | list of all fooditems   |
-| fooditem/pk  | GET      | READ | all food entries for a user   |
+| fooditem  | GET      | READ | List of all fooditems   |
+| fooditem/pk  | GET      | READ | Details about a particular food entry  |
 | fooditem/pk  | PUT      | UPDATE | Updates a food entry   |
 | fooditem/pk  | PATCH      | UPDATE | Updates a food entry   |
 | fooditem/pk  | DELETE      | DELETE |Deletes a food entry   |
